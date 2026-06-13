@@ -1,0 +1,54 @@
+import com.sap.gateway.ip.core.customdev.util.Message
+import javax.xml.parsers.DocumentBuilderFactory
+
+def Message processData(Message message) {
+
+    def body = message.getBody(String)
+
+    if (!body || body.trim().isEmpty()) {
+        throw new Exception("Empty payload received")
+    }
+
+    def factory = DocumentBuilderFactory.newInstance()
+    def builder = factory.newDocumentBuilder()
+
+    def input = new ByteArrayInputStream(body.getBytes("UTF-8"))
+    def doc = builder.parse(input)
+
+    def errors = []
+
+    def poNumber = doc.getElementsByTagName("PO_NUMBER")?.item(0)?.textContent
+    if (!poNumber) {
+        errors.add("PO_NUMBER is mandatory")
+    }
+
+    def customerId = doc.getElementsByTagName("CUSTOMER_ID")?.item(0)?.textContent
+    if (!customerId) {
+        errors.add("CUSTOMER_ID is mandatory")
+    }
+
+    def deliveryDate = doc.getElementsByTagName("DELIVERY_DATE")?.item(0)?.textContent
+    if (!deliveryDate) {
+        errors.add("DELIVERY_DATE is mandatory")
+    }
+
+    def qtyNode = doc.getElementsByTagName("QTY")?.item(0)?.textContent
+
+    if (!qtyNode) {
+        errors.add("QTY is mandatory")
+    } else {
+        try {
+            if (new BigDecimal(qtyNode) <= 0) {
+                errors.add("QTY must be greater than 0")
+            }
+        } catch(Exception e) {
+            errors.add("QTY must be numeric")
+        }
+    }
+
+    if (!errors.isEmpty()) {
+        throw new Exception(errors.join(" | "))
+    }
+
+    return message
+}
